@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import uvicorn
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field 
 from fastapi import HTTPException
 
 app=FastAPI(title='Task API',
@@ -38,3 +38,26 @@ async def showing_spec_task(TaskId:int):
             return task 
         
     raise HTTPException(status_code=404, detail=f"Task {TaskId} not found")
+
+#Stage 3: Post A new Task
+
+class CreateNewT(BaseModel):
+    title:str 
+
+@app.post('/tasks')
+async def create_task(tasks:CreateNewT):
+
+    if listoftasks:
+        new_id = listoftasks[-1]['id'] + 1
+    # in case list is empty 
+    else:
+        new_id=1
+    new_task={
+        'id':new_id,
+        'title':tasks.title.strip(),
+        'done':False}
+    
+    listoftasks.append(new_task)
+
+    return new_task
+

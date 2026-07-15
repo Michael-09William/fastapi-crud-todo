@@ -10,7 +10,7 @@ Built as part of the FlyRank Internship (Backend Track - Week 2, Assignment A1).
 
 - [x] **Stage 1:** Root API description & `/health` endpoint.
 - [x] **Stage 2:** Read endpoints (List all tasks & get single task with 404 error handling).
-- [ ] **Stage 3:** Create tasks with input validation (Pydantic).
+- [x] **Stage 3:** Create tasks with input validation (Pydantic).
 - [ ] **Stage 4:** Full CRUD (Update & Delete endpoints).
 - [ ] **Stage 5:** Swagger UI Interactive Docs.
 
@@ -59,6 +59,9 @@ http://127.0.0.1:8000
 |--------|----------|-------------|--------|
 | GET | `/` | API Information | 200 OK |
 | GET | `/health` | Server Health Status | 200 OK |
+| GET | `/tasks` | Reading All Tasks  | 200 OK |
+| GET | `/tasks/{taskId}` | Reading Specific Task | 200 OK |
+| POST | `/tasks` | Creating New Task | 200 OK |
 
 ---
 
