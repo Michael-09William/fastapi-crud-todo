@@ -14,12 +14,14 @@ listoftasks=[{'id':1,"title":'Create APIS','done':True},
 
 @app.get('/')
 async def root():
+    """Return basic API information."""
     return {'name':'Task API',
             'version':'1.0',
             'endpoints': ["/tasks"]}
 
 @app.get('/health')
 async def health():
+    """Check the server health status."""
     return{"status": "ok"}
 
 
@@ -27,11 +29,13 @@ async def health():
 
 @app.get('/tasks')
 async def showing_tasks():
+    """List all available tasks in the list."""
     return listoftasks
 
 
 @app.get('/tasks/{TaskId}')
 async def showing_spec_task(TaskId:int):
+    """Retrieve a single task by its unique ID."""
     for task in listoftasks:
         if task['id']==TaskId:
             return task 
@@ -46,6 +50,7 @@ class CreateNewT(BaseModel):
 
 @app.post('/tasks',status_code=status.HTTP_201_CREATED)
 async def create_task(tasks:CreateNewT):
+    """Create a new task with in-memory persistence."""
     if listoftasks:
         new_id = listoftasks[-1]['id'] + 1
     # in case list is empty 
@@ -64,6 +69,7 @@ async def create_task(tasks:CreateNewT):
 
 @app.put('/tasks/{id}')
 async def update_id_title(id:int ,task_data:CreateNewT):
+        """Update an existing task's title or status."""
         for tasks in listoftasks:
             if tasks['id']== id:
                 tasks['title']=task_data.title.strip()
@@ -75,6 +81,7 @@ async def update_id_title(id:int ,task_data:CreateNewT):
 
 @app.delete('/tasks/{id}')
 async def delete_tasks(id:int):
+    """Delete a task from the list by ID."""
     for tasks in listoftasks:
         if tasks['id']==id:
             listoftasks.remove(tasks)    
