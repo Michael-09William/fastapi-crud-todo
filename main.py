@@ -1,7 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
-from fastapi import HTTPException
 
 app=FastAPI(title='Task API',
             description='A simple in-memory CRUD API for managing tasks',
@@ -43,10 +42,10 @@ async def showing_spec_task(TaskId:int):
 
 class CreateNewT(BaseModel):
     title:str 
+    done: bool
 
-@app.post('/tasks')
+@app.post('/tasks',status_code=status.HTTP_201_CREATED)
 async def create_task(tasks:CreateNewT):
-
     if listoftasks:
         new_id = listoftasks[-1]['id'] + 1
     # in case list is empty 
@@ -61,3 +60,27 @@ async def create_task(tasks:CreateNewT):
 
     return new_task
 
+#Stage 4 : Update and Delete
+
+@app.put('/tasks/{id}')
+async def update_id_title(id:int ,task_data:CreateNewT):
+        for tasks in listoftasks:
+            if tasks['id']== id:
+                tasks['title']=task_data.title.strip()
+                tasks['done']= task_data.done
+            
+                return tasks 
+            
+        raise HTTPException(status_code=404, detail=f"Task {id} not found")
+
+@app.delete('/tasks/{id}')
+async def delete_tasks(id:int):
+    for tasks in listoftasks:
+        if tasks['id']==id:
+            listoftasks.remove(tasks)    
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+   
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, 
+        detail=f"Task with id {id} not found"
+    )
