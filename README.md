@@ -12,7 +12,7 @@ Built as part of the FlyRank Internship (Backend Track - Week 2, Assignment A1).
 - [x] **Stage 2:** Read endpoints (List all tasks & get single task with 404 error handling).
 - [x] **Stage 3:** Create tasks with input validation (Pydantic).
 - [x] **Stage 4:** Full CRUD (Update & Delete endpoints).
-- [] **Stage 5:** Swagger UI Interactive Docs.
+- [x] **Stage 5:** Swagger UI Interactive Docs.
 
 ---
 
