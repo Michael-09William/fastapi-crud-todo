@@ -23,7 +23,7 @@ if count==0:
     sample_tasks=[
         ("DO Assignment 2",0),
         ("Learn Backend with sqLite",1),
-        ("Learn RAG",2)
+        ("Learn RAG",0)
     ]
     cursor.executemany("INSERT INTO tasks(title,done) VALUES(?,?)",sample_tasks)
     conn.commit()
@@ -54,7 +54,7 @@ async def health():
 
 @app.get('/tasks')
 async def showing_tasks():
-    """List all available tasks in the list."""
+    """List all available tasks in the database."""
     cursor.execute("SELECT * FROM tasks")
     tasks=cursor.fetchall()
     return tasks
@@ -62,7 +62,7 @@ async def showing_tasks():
 
 @app.get('/tasks/{TaskId}')
 async def showing_spec_task(TaskId:int):
-    """Retrieve a single task by its unique ID."""
+    """Retrieve a single task by its unique ID from database."""
     cursor.execute('SELECT * FROM tasks WHERE id=?',(TaskId,))
     task=cursor.fetchone()
     if task:
@@ -74,24 +74,26 @@ async def showing_spec_task(TaskId:int):
 
 class CreateNewT(BaseModel):
     title:str 
-    done: bool
+    done: bool=False
 
 @app.post('/tasks',status_code=status.HTTP_201_CREATED)
 async def create_task(tasks:CreateNewT):
-    """Create a new task with in-memory persistence."""
-    if listoftasks:
-        new_id = listoftasks[-1]['id'] + 1
-    # in case list is empty 
-    else:
-        new_id=1
-    new_task={
-        'id':new_id,
-        'title':tasks.title.strip(),
-        'done':False}
-    
-    listoftasks.append(new_task)
+    """Create a new task and store it in SQLite database."""
+    if not tasks.title or not tasks.title.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Title is required and cannot be empty")
+    cursor.execute("INSERT INTO tasks(title,done) VALUES(?,?)",(tasks.title.strip(),int(tasks.done)))
 
-    return new_task
+    conn.commit()
+
+    new_id=cursor.lastrowid
+
+    cursor.execute("SELECT * FROM tasks WHERE id=?",(new_id,))
+
+    create_task=cursor.fetchone()
+
+    return create_task
+
 
 #Stage 4 : Update and Delete
 
