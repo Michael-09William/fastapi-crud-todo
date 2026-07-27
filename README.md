@@ -94,3 +94,26 @@ Screenshot will be added in **Stage 5**.
 Swagger URL:
 
 http://127.0.0.1:8000/docs
+
+
+
+# Task API - Database Integration (Assignment 2)
+
+A FastAPI backend service upgraded from in-memory storage to persistent SQLite database storage (`tasks.db`).
+
+## Features
+- **SQLite Persistence**: All CRUD operations directly interact with `tasks.db`, ensuring data survives server restarts.
+- **Parametrized Queries**: Safe SQL execution to prevent SQL injection vulnerabilities.
+- **RESTful Endpoints**:
+  - `GET /tasks`: Retrieve all tasks.
+  - `GET /tasks/{id}`: Fetch a single task by ID.
+  - `POST /tasks`: Create a new task.
+  - `PUT /tasks/{id}`: Update an existing task's title or status.
+  - `DELETE /tasks/{id}`: Delete a task by ID.
+
+## SQL Exploration (Stage 4)
+Ran raw SQL directly via **DB Browser for SQLite**:
+```sql
+SELECT COUNT(*) FROM tasks;
+```
+Result: Returned the total number of tasks currently stored in the database, verifying that both FastAPI and external SQLite viewers share the exact same source of truth in real-time.
