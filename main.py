@@ -55,17 +55,20 @@ async def health():
 @app.get('/tasks')
 async def showing_tasks():
     """List all available tasks in the list."""
-    return listoftasks
+    cursor.execute("SELECT * FROM tasks")
+    tasks=cursor.fetchall()
+    return tasks
 
 
 @app.get('/tasks/{TaskId}')
 async def showing_spec_task(TaskId:int):
     """Retrieve a single task by its unique ID."""
-    for task in listoftasks:
-        if task['id']==TaskId:
-            return task 
-        
-    raise HTTPException(status_code=404, detail=f"Task {TaskId} not found")
+    cursor.execute('SELECT * FROM tasks WHERE id=?',(TaskId,))
+    task=cursor.fetchone()
+    if task:
+        return task
+    else:
+        raise HTTPException(status_code=404, detail=f"Task not found")
 
 #Stage 3: Post A new Task
 
