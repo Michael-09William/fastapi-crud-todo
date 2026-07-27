@@ -100,24 +100,39 @@ async def create_task(tasks:CreateNewT):
 @app.put('/tasks/{id}')
 async def update_id_title(id:int ,task_data:CreateNewT):
         """Update an existing task's title or status."""
-        for tasks in listoftasks:
-            if tasks['id']== id:
-                tasks['title']=task_data.title.strip()
-                tasks['done']= task_data.done
-            
-                return tasks 
-            
-        raise HTTPException(status_code=404, detail=f"Task {id} not found")
+        if not task_data.title or not task_data.title.strip():
+               raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                   detail="Title is required and cannot be empty")
+
+        cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
+        task=cursor.fetchone()
+
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found")
+        
+        cursor.execute("UPDATE tasks SET title=? , done=? WHERE id=?",(task_data.title.strip(),int(task_data.done),id))
+        conn.commit()
+
+        cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
+        updated_task=cursor.fetchone()
+        return updated_task
+
 
 @app.delete('/tasks/{id}')
 async def delete_tasks(id:int):
-    """Delete a task from the list by ID."""
-    for tasks in listoftasks:
-        if tasks['id']==id:
-            listoftasks.remove(tasks)    
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
+    """Delete a task from the database by ID."""
+    cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
+    task=cursor.fetchone()
+    if not task:
+         raise HTTPException(
+                         status_code=status.HTTP_404_NOT_FOUND,
+                         detail="Task not found")
+         
    
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, 
-        detail=f"Task with id {id} not found"
-    )
+    cursor.execute("DELETE FROM tasks WHERE id=?",(id,))
+    conn.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
