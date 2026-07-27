@@ -1,7 +1,32 @@
 from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
+import sqlite3
 
+conn=sqlite3.connect("tasks.db",check_same_thread=False)
+conn.row_factory=sqlite3.Row
+
+
+cursor=conn.cursor()
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,
+title TEXT NOT NULL ,
+done BOOLEAN DEFAULT 0)
+    """)
+
+cursor.execute("SELECT COUNT(*) FROM tasks")
+count=cursor.fetchone()[0]
+
+if count==0:
+    sample_tasks=[
+        ("DO Assignment 2",0),
+        ("Learn Backend with sqLite",1),
+        ("Learn RAG",2)
+    ]
+    cursor.executemany("INSERT INTO tasks(title,done) VALUES(?,?)",sample_tasks)
+    conn.commit()
 app=FastAPI(title='Task API',
             description='A simple in-memory CRUD API for managing tasks',
             version='1.0')
