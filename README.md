@@ -94,3 +94,36 @@ Screenshot will be added in **Stage 5**.
 Swagger URL:
 
 http://127.0.0.1:8000/docs
+
+
+
+# Task API - Database Integration (Assignment 2)
+
+A FastAPI backend service upgraded from in-memory storage to persistent SQLite database storage (`tasks.db`).
+
+## Features
+- **SQLite Persistence**: All CRUD operations directly interact with `tasks.db`, ensuring data survives server restarts.
+- **Parametrized Queries**: Safe SQL execution to prevent SQL injection vulnerabilities.
+- **RESTful Endpoints**:
+  - `GET /tasks`: Retrieve all tasks.
+  - `GET /tasks/{id}`: Fetch a single task by ID.
+  - `POST /tasks`: Create a new task.
+  - `PUT /tasks/{id}`: Update an existing task's title or status.
+  - `DELETE /tasks/{id}`: Delete a task by ID.
+
+## Why SQLite?
+- **Single File**: The entire database lives in a local file (`tasks.db`), avoiding external service dependencies.
+- **Zero Setup**: No extra server installation, user creation, or complex database configuration needed.
+- **Data Persistence**: Data survives server restarts seamlessly.
+
+## Database Management
+- **File Location**: `tasks.db` is automatically created in the root directory upon server initialization if it does not exist.
+- **Git Ignore**: `tasks.db` is intentionally listed in `.gitignore` so every new clone starts with a fresh database setup without conflict.
+- **Auto-Initialization**: Running the app creates the `tasks` table automatically and seeds it with 3 default tasks on the first run.
+
+## How to Run the Project
+To start the server, run the following single command:
+
+```bash
+uvicorn main:app --reload
+```
