@@ -127,3 +127,11 @@ To start the server, run the following single command:
 ```bash
 uvicorn main:app --reload
 ```
+
+## Containerize stack (Assignment 3)
+
+- **.gitignore**: untracking (`.env`) file , (`env`)
+- **How to run docker with postgres** :
+```bash
+docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
+```
