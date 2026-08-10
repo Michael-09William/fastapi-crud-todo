@@ -2,6 +2,9 @@ from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
 import sqlite3
+from database import init_db
+
+init_db()
 
 conn=sqlite3.connect("tasks.db",check_same_thread=False)
 conn.row_factory=sqlite3.Row
