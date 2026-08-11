@@ -158,9 +158,17 @@ Built as part of the FlyRank Internship (Backend Track).
   create `.env` file in the root directory.
 
 3. **Environment Config For Public**
-  create `.env.example` file in the root directory to publish it
+  create `.env.example` 
+ 
+  ```bash
+  cp .env.example .env
+  ```
 
 4. **Run PostgreSQL Container**
   ```bash
   docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
+  ```
+5. **Run The Full Stack**
+  ```bash
+  docker compose up --build
   ```
