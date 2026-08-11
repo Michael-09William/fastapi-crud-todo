@@ -1,32 +1,37 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
-import sqlite3
+import psycopg
+from psycopg.rows import dict_row
+from database import init_db
 
-conn=sqlite3.connect("tasks.db",check_same_thread=False)
-conn.row_factory=sqlite3.Row
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-
+conn=psycopg.connect(DATABASE_URL, row_factory=dict_row)
 cursor=conn.cursor()
 
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS tasks(id SERIAL PRIMARY KEY,
 title TEXT NOT NULL ,
-done BOOLEAN DEFAULT 0)
+done BOOLEAN DEFAULT FALSE)
     """)
 
 cursor.execute("SELECT COUNT(*) FROM tasks")
-count=cursor.fetchone()[0]
+count=cursor.fetchone()['count']
 
 if count==0:
     sample_tasks=[
-        ("DO Assignment 2",0),
-        ("Learn Backend with sqLite",1),
-        ("Learn RAG",0)
+        ("DO Assignment 2",False),
+        ("Learn Backend with sqLite",True),
+        ("Learn RAG",False)
     ]
-    cursor.executemany("INSERT INTO tasks(title,done) VALUES(?,?)",sample_tasks)
+    cursor.executemany("INSERT INTO tasks(title,done) VALUES(%s,%s);",sample_tasks)
     conn.commit()
+
 app=FastAPI(title='Task API',
             description='A simple in-memory CRUD API for managing tasks',
             version='1.0')
@@ -55,20 +60,23 @@ async def health():
 @app.get('/tasks')
 async def showing_tasks():
     """List all available tasks in the database."""
-    cursor.execute("SELECT * FROM tasks")
+
+    cursor.execute("SELECT * FROM tasks;")
     tasks=cursor.fetchall()
     return tasks
 
 
 @app.get('/tasks/{TaskId}')
 async def showing_spec_task(TaskId:int):
-    """Retrieve a single task by its unique ID from database."""
-    cursor.execute('SELECT * FROM tasks WHERE id=?',(TaskId,))
+    """Retrieve a single task using parameterized query (%s)."""
+
+    cursor.execute('SELECT * FROM tasks WHERE id=%s;',(TaskId,))
     task=cursor.fetchone()
+
     if task:
         return task
     else:
-        raise HTTPException(status_code=404, detail=f"Task not found")
+        raise HTTPException(status_code=404, detail={"error": f"Task not found"})
 
 #Stage 3: Post A new Task
 
@@ -78,21 +86,19 @@ class CreateNewT(BaseModel):
 
 @app.post('/tasks',status_code=status.HTTP_201_CREATED)
 async def create_task(tasks:CreateNewT):
-    """Create a new task and store it in SQLite database."""
-    if not tasks.title or not tasks.title.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Title is required and cannot be empty")
-    cursor.execute("INSERT INTO tasks(title,done) VALUES(?,?)",(tasks.title.strip(),int(tasks.done)))
+    """Create a new task and store it in PostgreSQL database."""
 
+    if not tasks.title or not tasks.title.strip():
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Title is required and cannot be empty"})
+
+    cursor.execute("INSERT INTO tasks(title,done) VALUES(%s,%s) RETURNING *;",(tasks.title.strip(),tasks.done))
+
+    new_task=cursor.fetchone()
     conn.commit()
 
-    new_id=cursor.lastrowid
-
-    cursor.execute("SELECT * FROM tasks WHERE id=?",(new_id,))
-
-    create_task=cursor.fetchone()
-
-    return create_task
+    return new_task
 
 
 #Stage 4 : Update and Delete
@@ -100,38 +106,45 @@ async def create_task(tasks:CreateNewT):
 @app.put('/tasks/{id}')
 async def update_id_title(id:int ,task_data:CreateNewT):
         """Update an existing task's title or status."""
-        if not task_data.title or not task_data.title.strip():
-               raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                   detail="Title is required and cannot be empty")
 
-        cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
+        if not task_data.title or not task_data.title.strip():
+
+               raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                   detail={"error": "Title is required and cannot be empty"})
+
+        cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
         task=cursor.fetchone()
 
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found")
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail={"error": "Task not found"},
+)
         
-        cursor.execute("UPDATE tasks SET title=? , done=? WHERE id=?",(task_data.title.strip(),int(task_data.done),id))
+        cursor.execute("UPDATE tasks SET title=%s , done=%s WHERE id=%s RETURNING *;",(task_data.title.strip(),task_data.done,id))
+
+        updated_task=cursor.fetchone()
         conn.commit()
 
-        cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
-        updated_task=cursor.fetchone()
         return updated_task
-
+ 
 
 @app.delete('/tasks/{id}')
 async def delete_tasks(id:int):
     """Delete a task from the database by ID."""
-    cursor.execute("SELECT * FROM tasks WHERE id=?",(id,))
+
+    cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
     task=cursor.fetchone()
+
     if not task:
+         
          raise HTTPException(
-                         status_code=status.HTTP_404_NOT_FOUND,
-                         detail="Task not found")
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail={"error": "Task not found"},
+)
          
    
-    cursor.execute("DELETE FROM tasks WHERE id=?",(id,))
+    cursor.execute("DELETE FROM tasks WHERE id=%s;",(id,))
     conn.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
