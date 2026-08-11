@@ -128,10 +128,39 @@ To start the server, run the following single command:
 uvicorn main:app --reload
 ```
 
-## Containerize stack (Assignment 3)
+# 📝 Task API (FastAPI + PostgreSQL)
 
-- **.gitignore**: untracking (`.env`) file , (`env`)
-- **How to run docker with postgres** :
-```bash
-docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
-```
+A robust RESTful CRUD API built with **FastAPI** and **PostgreSQL** (`psycopg3`) for task management, featuring input validation, database seeding, and Docker support.
+
+Built as part of the FlyRank Internship (Backend Track).
+
+---
+
+## 🚀 Features & Progression
+
+- **Stage 1**: Root API metadata & `/health` endpoint.
+- **Stage 2**: Read endpoints (`/tasks` & `/tasks/{id}` with 404 handling).
+- **Stage 3**: Full CRUD operations directly connected to PostgreSQL (`RETURNING *` queries).
+- **Validation**: Strict request validation using **Pydantic** models.
+- **Persistence**: Switched from SQLite to persistent **PostgreSQL** using parameterized queries to prevent SQL injection.
+- **Containerization**: Configured with Docker & PostgreSQL environment setup.
+
+---
+
+## ⚙️ Local Setup & Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone [https://github.com/Michael-09William/fastapi-crud-todo.git](https://github.com/Michael-09William/fastapi-crud-todo.git)
+   cd fastapi-crud-todo
+
+2. **Environment Configuration** 
+  create `.env` file in the root directory.
+
+3. **Environment Config For Public**
+  create `.env.example` file in the root directory to publish it
+
+4. **Run PostgreSQL Container**
+  ```bash
+  docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
+  ```
