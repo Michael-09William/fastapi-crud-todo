@@ -3,34 +3,24 @@ from dotenv import load_dotenv
 from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
-import psycopg
-from psycopg.rows import dict_row
-from database import init_db
+#import psycopg
+#from psycopg.rows import dict_row
+#from database import init_db
+from supabase import create_client, Client
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+#DATABASE_URL = os.getenv("DATABASE_URL")
 
-conn=psycopg.connect(DATABASE_URL, row_factory=dict_row)
-cursor=conn.cursor()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+PORT = int(os.getenv("PORT", 8000))
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in the environment variables.")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS tasks(id SERIAL PRIMARY KEY,
-title TEXT NOT NULL ,
-done BOOLEAN DEFAULT FALSE)
-    """)
-
-cursor.execute("SELECT COUNT(*) FROM tasks")
-count=cursor.fetchone()['count']
-
-if count==0:
-    sample_tasks=[
-        ("DO Assignment 2",False),
-        ("Learn Backend with sqLite",True),
-        ("Learn RAG",False)
-    ]
-    cursor.executemany("INSERT INTO tasks(title,done) VALUES(%s,%s);",sample_tasks)
-    conn.commit()
 
 app=FastAPI(title='Task API',
             description='A simple in-memory CRUD API for managing tasks',
@@ -61,8 +51,8 @@ async def health():
 async def showing_tasks():
     """List all available tasks in the database."""
 
-    cursor.execute("SELECT * FROM tasks;")
-    tasks=cursor.fetchall()
+    response = supabase.table("tasks").select("*").execute()
+    tasks = response.data
     return tasks
 
 
@@ -70,11 +60,11 @@ async def showing_tasks():
 async def showing_spec_task(TaskId:int):
     """Retrieve a single task using parameterized query (%s)."""
 
-    cursor.execute('SELECT * FROM tasks WHERE id=%s;',(TaskId,))
-    task=cursor.fetchone()
+    response = supabase.table("tasks").select("*").eq("id", TaskId).execute()
+    task = response.data
 
     if task:
-        return task
+        return task[0]
     else:
         raise HTTPException(status_code=404, detail={"error": f"Task not found"})
 
@@ -93,12 +83,12 @@ async def create_task(tasks:CreateNewT):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail={"error": "Title is required and cannot be empty"})
 
-    cursor.execute("INSERT INTO tasks(title,done) VALUES(%s,%s) RETURNING *;",(tasks.title.strip(),tasks.done))
+    response = supabase.table("tasks").insert({
+        "title": tasks.title.strip(),
+        "done": tasks.done
+    }).execute()
 
-    new_task=cursor.fetchone()
-    conn.commit()
-
-    return new_task
+    return response.data[0]
 
 
 #Stage 4 : Update and Delete
@@ -112,8 +102,8 @@ async def update_id_title(id:int ,task_data:CreateNewT):
                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                    detail={"error": "Title is required and cannot be empty"})
 
-        cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
-        task=cursor.fetchone()
+        response = supabase.table("tasks").select("*").eq("id", id).execute()
+        task = response.data
 
         if not task:
             raise HTTPException(
@@ -121,20 +111,22 @@ async def update_id_title(id:int ,task_data:CreateNewT):
     detail={"error": "Task not found"},
 )
         
-        cursor.execute("UPDATE tasks SET title=%s , done=%s WHERE id=%s RETURNING *;",(task_data.title.strip(),task_data.done,id))
+        updated_response = supabase.table("tasks").update({
+            "title": task_data.title.strip(),
+            "done": task_data.done
+        }).eq("id", id).execute()
 
-        updated_task=cursor.fetchone()
-        conn.commit()
+      
 
-        return updated_task
- 
+        return updated_response.data[0]
+
 
 @app.delete('/tasks/{id}')
 async def delete_tasks(id:int):
     """Delete a task from the database by ID."""
 
-    cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
-    task=cursor.fetchone()
+    response = supabase.table("tasks").select("*").eq("id", id).execute()
+    task = response.data
 
     if not task:
          
@@ -144,8 +136,7 @@ async def delete_tasks(id:int):
 )
          
    
-    cursor.execute("DELETE FROM tasks WHERE id=%s;",(id,))
-    conn.commit()
+    response = supabase.table("tasks").delete().eq("id", id).execute()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
