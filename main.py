@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI,HTTPException,Response,status,Request,Header 
+from fastapi import FastAPI,HTTPException,Response,status,Request,Header ,Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 from pydantic import BaseModel, Field 
 from typing import Optional
@@ -9,6 +10,7 @@ from typing import Optional
 #from database import init_db
 from supabase import create_client, Client
 
+security = HTTPBearer()
 load_dotenv()
 #DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -202,17 +204,35 @@ async def public_info():
 
 
 @app.get('/protected/profile')
-async def protected_profile(authorization: Optional[str] = Header(None)):
+async def protected_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Access protected user profile information."""
 
-    if not authorization or not authorization.startswith("Bearer ") or len(authorization.split(" ")) < 2:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail={"error": "Access token required"})
+    token = credentials.credentials.strip()
 
-    token = authorization.split(" ")[1]
-    if not token.strip():
-         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                             detail={"error": "Access token required"})
+    try:
+        user_response = supabase.auth.get_user(jwt=token)
 
-    return {"message": "Access granted to unverified route", "token": token}
+        print(">>> SUPABASE RESPONSE:", user_response)
 
+        if not user_response or not getattr(user_response, 'user', None):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "Invalid or expired token"}
+            )
+
+        user = user_response.user
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "created_at": str(getattr(user, 'created_at', ''))
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(">>> SUPABASE ERROR TYPE:", type(e))
+        print(">>> SUPABASE ERROR DETAILS:", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Invalid or expired token", "raw_error": str(e)}
+        )
