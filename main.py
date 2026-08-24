@@ -1,36 +1,29 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI,HTTPException,Response,status
+from fastapi import FastAPI,HTTPException,Response,status,Request,Header ,Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 from pydantic import BaseModel, Field 
-import psycopg
-from psycopg.rows import dict_row
-from database import init_db
+from typing import Optional
+#import psycopg
+#from psycopg.rows import dict_row
+#from database import init_db
+from supabase import create_client, Client
 
+security = HTTPBearer()
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+#DATABASE_URL = os.getenv("DATABASE_URL")
 
-conn=psycopg.connect(DATABASE_URL, row_factory=dict_row)
-cursor=conn.cursor()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+PORT = int(os.getenv("PORT", 8000))
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in the environment variables.")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS tasks(id SERIAL PRIMARY KEY,
-title TEXT NOT NULL ,
-done BOOLEAN DEFAULT FALSE)
-    """)
-
-cursor.execute("SELECT COUNT(*) FROM tasks")
-count=cursor.fetchone()['count']
-
-if count==0:
-    sample_tasks=[
-        ("DO Assignment 2",False),
-        ("Learn Backend with sqLite",True),
-        ("Learn RAG",False)
-    ]
-    cursor.executemany("INSERT INTO tasks(title,done) VALUES(%s,%s);",sample_tasks)
-    conn.commit()
 
 app=FastAPI(title='Task API',
             description='A simple in-memory CRUD API for managing tasks',
@@ -61,8 +54,8 @@ async def health():
 async def showing_tasks():
     """List all available tasks in the database."""
 
-    cursor.execute("SELECT * FROM tasks;")
-    tasks=cursor.fetchall()
+    response = supabase.table("tasks").select("*").execute()
+    tasks = response.data
     return tasks
 
 
@@ -70,11 +63,11 @@ async def showing_tasks():
 async def showing_spec_task(TaskId:int):
     """Retrieve a single task using parameterized query (%s)."""
 
-    cursor.execute('SELECT * FROM tasks WHERE id=%s;',(TaskId,))
-    task=cursor.fetchone()
+    response = supabase.table("tasks").select("*").eq("id", TaskId).execute()
+    task = response.data
 
     if task:
-        return task
+        return task[0]
     else:
         raise HTTPException(status_code=404, detail={"error": f"Task not found"})
 
@@ -93,12 +86,12 @@ async def create_task(tasks:CreateNewT):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail={"error": "Title is required and cannot be empty"})
 
-    cursor.execute("INSERT INTO tasks(title,done) VALUES(%s,%s) RETURNING *;",(tasks.title.strip(),tasks.done))
+    response = supabase.table("tasks").insert({
+        "title": tasks.title.strip(),
+        "done": tasks.done
+    }).execute()
 
-    new_task=cursor.fetchone()
-    conn.commit()
-
-    return new_task
+    return response.data[0]
 
 
 #Stage 4 : Update and Delete
@@ -112,8 +105,8 @@ async def update_id_title(id:int ,task_data:CreateNewT):
                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                    detail={"error": "Title is required and cannot be empty"})
 
-        cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
-        task=cursor.fetchone()
+        response = supabase.table("tasks").select("*").eq("id", id).execute()
+        task = response.data
 
         if not task:
             raise HTTPException(
@@ -121,20 +114,22 @@ async def update_id_title(id:int ,task_data:CreateNewT):
     detail={"error": "Task not found"},
 )
         
-        cursor.execute("UPDATE tasks SET title=%s , done=%s WHERE id=%s RETURNING *;",(task_data.title.strip(),task_data.done,id))
+        updated_response = supabase.table("tasks").update({
+            "title": task_data.title.strip(),
+            "done": task_data.done
+        }).eq("id", id).execute()
 
-        updated_task=cursor.fetchone()
-        conn.commit()
+      
 
-        return updated_task
- 
+        return updated_response.data[0]
+
 
 @app.delete('/tasks/{id}')
 async def delete_tasks(id:int):
     """Delete a task from the database by ID."""
 
-    cursor.execute("SELECT * FROM tasks WHERE id=%s;",(id,))
-    task=cursor.fetchone()
+    response = supabase.table("tasks").select("*").eq("id", id).execute()
+    task = response.data
 
     if not task:
          
@@ -142,10 +137,125 @@ async def delete_tasks(id:int):
     status_code=status.HTTP_404_NOT_FOUND,
     detail={"error": "Task not found"},
 )
-         
-   
-    cursor.execute("DELETE FROM tasks WHERE id=%s;",(id,))
-    conn.commit()
 
+    response = supabase.table("tasks").delete().eq("id", id).execute()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+class AuthSchema(BaseModel):
+    email: Optional[str] =None
+    password: Optional[str] =None
+
+@app.post('/auth/signup',status_code=status.HTTP_201_CREATED)
+
+async def signup(auth:AuthSchema):
+    """Sign up a new user using Supabase authentication."""
+
+    if not auth.email or not auth.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Email and password are required"})
+    try:
+        response = supabase.auth.sign_up({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        if not response.user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail={"error": "User registration failed"})
+
+        return response.user
+    except HTTPException:
+        raise 
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": str(e)})
+
+@app.post('/auth/login')
+async def login(auth: AuthSchema):
+    """Log in an existing user using Supabase authentication."""
+
+    if not auth.email or not auth.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Email and password are required"})
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "token_type": "bearer"
+        }
+    
+    except HTTPException:
+            raise 
+    except Exception as e:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail={"error": "Invalid login credentials"})
+
+@app.get('/public/info', status_code=status.HTTP_200_OK)
+async def public_info():
+
+     return {"message": "Welcome stranger! This info is public."}
+
+
+
+@app.get('/protected/profile')
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Extract and validate the current user from the Bearer token."""
+    token = credentials.credentials.strip()
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Access token required"}
+        )
+
+    try:
+        user_response = supabase.auth.get_user(jwt=token)
+        if not user_response or not getattr(user_response, 'user', None):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "Invalid or expired token"}
+            )
+        return user_response.user
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Invalid or expired token"}
+        )
+
+    
+# 2. Protected Routes 
+@app.get('/protected/profile')
+async def protected_profile(current_user = Depends(get_current_user)):
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "created_at": str(getattr(current_user, 'created_at', ''))
+    }
+
+@app.get('/protected/dashboard')
+async def protected_dashboard(current_user = Depends(get_current_user)):
+    return {
+        "message": f"Welcome to your dashboard, {current_user.email}!",
+        "user_id": str(current_user.id)
+    }
+
+# 3. Logout Route
+@app.post('/auth/logout', status_code=status.HTTP_204_NO_CONTENT)
+async def logout(current_user = Depends(get_current_user)):
+    try:
+        supabase.auth.sign_out()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": str(e)}
+        )
