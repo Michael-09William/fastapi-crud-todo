@@ -204,35 +204,64 @@ async def public_info():
 
 
 @app.get('/protected/profile')
-async def protected_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Access protected user profile information."""
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    """Extract and validate the current user from the Authorization header."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Access token required"}
+        )
 
-    token = credentials.credentials.strip()
+    parts = authorization.split(" ")
+    if len(parts) != 2 or not parts[1].strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Access token required"}
+        )
+
+    token = parts[1].strip()
 
     try:
         user_response = supabase.auth.get_user(jwt=token)
-
-        print(">>> SUPABASE RESPONSE:", user_response)
-
         if not user_response or not getattr(user_response, 'user', None):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": "Invalid or expired token"}
             )
-
-        user = user_response.user
-        return {
-            "id": str(user.id),
-            "email": user.email,
-            "created_at": str(getattr(user, 'created_at', ''))
-        }
+        return user_response.user
 
     except HTTPException:
         raise
-    except Exception as e:
-        print(">>> SUPABASE ERROR TYPE:", type(e))
-        print(">>> SUPABASE ERROR DETAILS:", str(e))
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Invalid or expired token", "raw_error": str(e)}
+            detail={"error": "Invalid or expired token"}
+        )
+
+# 2. Protected Routes 
+@app.get('/protected/profile')
+async def protected_profile(current_user = Depends(get_current_user)):
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "created_at": str(getattr(current_user, 'created_at', ''))
+    }
+
+@app.get('/protected/dashboard')
+async def protected_dashboard(current_user = Depends(get_current_user)):
+    return {
+        "message": f"Welcome to your dashboard, {current_user.email}!",
+        "user_id": str(current_user.id)
+    }
+
+# 3. Logout Route
+@app.post('/auth/logout', status_code=status.HTTP_204_NO_CONTENT)
+async def logout(current_user = Depends(get_current_user)):
+    try:
+        supabase.auth.sign_out()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": str(e)}
         )
