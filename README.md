@@ -1,174 +1,134 @@
-# 📝 Task API (FastAPI)
+# 📝 Task API (FastAPI + Supabase Auth + PostgreSQL)
 
-A simple, lightweight, in-memory CRUD API for managing a to-do list.
+A production-grade RESTful API built with **FastAPI**, integrated with **Supabase Authentication** (JWT), **PostgreSQL** persistence, and documented via interactive **Swagger UI (OpenAPI)** with HTTP Bearer security schemes.
 
-Built as part of the FlyRank Internship (Backend Track - Week 2, Assignment A1).
-
----
-
-## 🚀 Features (Implemented & Upcoming)
-
-- [x] **Stage 1:** Root API description & `/health` endpoint.
-- [x] **Stage 2:** Read endpoints (List all tasks & get single task with 404 error handling).
-- [x] **Stage 3:** Create tasks with input validation (Pydantic).
-- [x] **Stage 4:** Full CRUD (Update & Delete endpoints).
-- [x] **Stage 5:** Swagger UI Interactive Docs.
+Built as part of the FlyRank Internship (Backend AI Track).
 
 ---
 
-## ⚙️ Installation
+## 🚀 Key Features
 
-1. Clone the repository
-
-```bash
-git clone https://github.com/Michael-09William/fastapi-crud-todo.git
-cd fastapi-crud-todo
-```
-
-2. Activate the virtual environment (Windows)
-
-```cmd
-.\env\Scripts\activate
-```
-
-3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-4. Run the server
-
-```bash
-uvicorn main:app --reload
-```
+* **Authentication & Authorization:**
+  * **User Sign Up & Login:** Secure authentication powered by Supabase Auth (`supabase-py`).
+  * **JWT Validation:** Reusable FastAPI dependency (`get_current_user`) acting as an Auth Guard across protected routes.
+  * **Session Management:** Dedicated `/auth/logout` endpoint returning `204 No Content`.
+* **Interactive API Documentation:**
+  * Native **Swagger UI** integration configured with `HTTPBearer` scheme.
+  * One-click authorization testing directly from the browser at `/docs`.
+* **Task Management (CRUD):**
+  * Full task lifecycle management (Create, Read, Update, Delete).
+  * Strict request/response validation powered by **Pydantic**.
+  * Parameterized SQL queries preventing SQL injection vulnerabilities.
+* **Database & Infrastructure:**
+  * Persistent **PostgreSQL** storage (`psycopg3`).
+  * **Dockerized Execution:** Fully containerized setup via `docker-compose`.
 
 ---
 
-## 💡 Server
+## 🛣️ API Endpoints Reference
 
-The server will start locally at:
+### 🔐 Authentication Routes
+| Method | Endpoint | Description | Auth Required | Status Code |
+| :--- | :--- | :--- | :---: | :---: |
+| `POST` | `/auth/signup` | Register a new user | ❌ | `201 Created` |
+| `POST` | `/auth/login` | Authenticate and obtain JWT token | ❌ | `200 OK` |
+| `POST` | `/auth/logout` | Revoke session / Sign out | ✅ | `204 No Content` |
 
-http://127.0.0.1:8000
+### 🛡️ Protected User Routes
+| Method | Endpoint | Description | Auth Required | Status Code |
+| :--- | :--- | :--- | :---: | :---: |
+| `GET` | `/protected/profile` | Retrieve current authenticated user profile | ✅ | `200 OK` |
+| `GET` | `/protected/dashboard` | Protected dashboard test checkpoint | ✅ | `200 OK` |
 
----
-
-## 🛣️ API Endpoints
-
-| Method | Endpoint | Description | Status |
-|--------|----------|-------------|--------|
-| GET | `/` | API Information | 200 OK |
-| GET | `/health` | Server Health Status | 200 OK |
-| GET | `/tasks` | Reading All Tasks  | 200 OK |
-| GET | `/tasks/{taskId}` | Reading Specific Task | 200 OK |
-| POST | `/tasks` | Creating New Task | 200 OK |
-| PULL | `/tasks/{id}` | Updating Task Titile And Status | 200 OK |
-| DELETE | `/tasks/{id}` | Deleting A Task | 200 OK |
-
-
----
-
-## 🧪 Sample Request
-
-```bash
-curl -i http://localhost:8000/health
-```
-
-### Example Response
-
-```http
-HTTP/1.1 200 OK
-date: Wed, 15 Jul 2026 15:09:00 GMT
-server: uvicorn
-content-type: application/json
-
-{"status":"ok"}
-```
+### 📋 Task Management Routes
+| Method | Endpoint | Description | Auth Required | Status Code |
+| :--- | :--- | :--- | :---: | :---: |
+| `GET` | `/` | API Metadata & Info | ❌ | `200 OK` |
+| `GET` | `/health` | Server Health Check | ❌ | `200 OK` |
+| `GET` | `/tasks` | List all tasks | ❌ / ✅ | `200 OK` |
+| `GET` | `/tasks/{id}` | Get specific task by ID | ❌ / ✅ | `200 OK` / `404` |
+| `POST` | `/tasks` | Create a new task | ✅ | `201 Created` |
+| `PUT` | `/tasks/{id}` | Update task title or status | ✅ | `200 OK` |
+| `DELETE`| `/tasks/{id}` | Delete a task | ✅ | `200 OK` / `204` |
 
 ---
 
-## 📸 Swagger UI Preview
+## 🛠️ Tech Stack
 
-Screenshot will be added in **Stage 5**.
-
-Swagger URL:
-
-http://127.0.0.1:8000/docs
-
-
-
-# Task API - Database Integration (Assignment 2)
-
-A FastAPI backend service upgraded from in-memory storage to persistent SQLite database storage (`tasks.db`).
-
-## Features
-- **SQLite Persistence**: All CRUD operations directly interact with `tasks.db`, ensuring data survives server restarts.
-- **Parametrized Queries**: Safe SQL execution to prevent SQL injection vulnerabilities.
-- **RESTful Endpoints**:
-  - `GET /tasks`: Retrieve all tasks.
-  - `GET /tasks/{id}`: Fetch a single task by ID.
-  - `POST /tasks`: Create a new task.
-  - `PUT /tasks/{id}`: Update an existing task's title or status.
-  - `DELETE /tasks/{id}`: Delete a task by ID.
-
-## Why SQLite?
-- **Single File**: The entire database lives in a local file (`tasks.db`), avoiding external service dependencies.
-- **Zero Setup**: No extra server installation, user creation, or complex database configuration needed.
-- **Data Persistence**: Data survives server restarts seamlessly.
-
-## Database Management
-- **File Location**: `tasks.db` is automatically created in the root directory upon server initialization if it does not exist.
-- **Git Ignore**: `tasks.db` is intentionally listed in `.gitignore` so every new clone starts with a fresh database setup without conflict.
-- **Auto-Initialization**: Running the app creates the `tasks` table automatically and seeds it with 3 default tasks on the first run.
-
-## How to Run the Project
-To start the server, run the following single command:
-
-```bash
-uvicorn main:app --reload
-```
-
-# 📝 Task API (FastAPI + PostgreSQL)
-
-A robust RESTful CRUD API built with **FastAPI** and **PostgreSQL** (`psycopg3`) for task management, featuring input validation, database seeding, and Docker support.
-
-Built as part of the FlyRank Internship (Backend Track).
-
----
-
-## 🚀 Features & Progression
-
-- **Stage 1**: Root API metadata & `/health` endpoint.
-- **Stage 2**: Read endpoints (`/tasks` & `/tasks/{id}` with 404 handling).
-- **Stage 3**: Full CRUD operations directly connected to PostgreSQL (`RETURNING *` queries).
-- **Validation**: Strict request validation using **Pydantic** models.
-- **Persistence**: Switched from SQLite to persistent **PostgreSQL** using parameterized queries to prevent SQL injection.
-- **Containerization**: Configured with Docker & PostgreSQL environment setup.
+* **Framework:** FastAPI
+* **Auth Service:** Supabase Auth (`supabase-py`)
+* **Security Scheme:** `HTTPBearer` (JWT Bearer Token)
+* **Database:** PostgreSQL (with `psycopg3`)
+* **Data Validation:** Pydantic
+* **Containerization:** Docker & Docker Compose
 
 ---
 
 ## ⚙️ Local Setup & Installation
 
-1. **Clone the repository**
+### Option 1: Running with Docker (Recommended)
+
+1. **Clone the repository:**
    ```bash
    git clone [https://github.com/Michael-09William/fastapi-crud-todo.git](https://github.com/Michael-09William/fastapi-crud-todo.git)
    cd fastapi-crud-todo
 
-2. **Environment Configuration** 
-  create `.env` file in the root directory.
+  2. **Configure Environment Variables**
+     
+      Create a (.env) file in the root directory
 
-3. **Environment Config For Public**
-  create `.env.example` 
- 
-  ```bash
-  cp .env.example .env
-  ```
+      ```bash
+      cp .env.example .env
+      ```
+  3. **Launch Database Container**
 
-4. **Run PostgreSQL Container**
-  ```bash
-  docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
-  ```
-5. **Run The Full Stack**
-  ```bash
-  docker compose up --build
-  ```
+      Launch Database Container
+
+      ```bash
+      docker run --name taskdb -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tasks -p 5433:5432 -v taskdata:/var/lib/postgresql/data -d postgres:16
+      ```
+4.  **Run Full Stack via Docker Compose**
+
+      ```bash
+      docker compose up --build
+      ```
+
+
+### Option 2: Running Locally (Python Environment)
+
+  1. **Set up Virtual Environment**
+      ```bash
+      python -m venv env
+      # Windows
+      .\env\Scripts\activate
+      # Linux/macOS
+      source env/bin/activate
+      
+  2. **Install Dependencies**
+
+      ```bash
+      pip install -r requirements.txt
+      ```
+      
+  3. **Start Development Server**
+
+      ```bash
+      uvicorn main:app --port 8005 --reload
+      ```
+
+## 📸 Swagger UI Preview
+
+### Bearer Authorization Setup
+![Swagger Authorize](docs/Authorization.png)
+
+### Protected Profile Response (200 OK)
+![Swagger Profile Endpoint](docs/OK_200.png)
+
+### Database Browser Screenshot
+![Database Browser](docs/db_browser_screenshot.png)
+
+### Swagger Endpoints 
+![APIs](docs/taskapi.png)
+
+### Database Browser with Postgres and Docker
+![APIs](docs/DB_browser_screenshot_postgres+docker.png)

@@ -204,22 +204,15 @@ async def public_info():
 
 
 @app.get('/protected/profile')
-async def get_current_user(authorization: Optional[str] = Header(None)):
-    """Extract and validate the current user from the Authorization header."""
-    if not authorization or not authorization.startswith("Bearer "):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Extract and validate the current user from the Bearer token."""
+    token = credentials.credentials.strip()
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Access token required"}
         )
-
-    parts = authorization.split(" ")
-    if len(parts) != 2 or not parts[1].strip():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Access token required"}
-        )
-
-    token = parts[1].strip()
 
     try:
         user_response = supabase.auth.get_user(jwt=token)
@@ -238,6 +231,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
             detail={"error": "Invalid or expired token"}
         )
 
+    
 # 2. Protected Routes 
 @app.get('/protected/profile')
 async def protected_profile(current_user = Depends(get_current_user)):
