@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI,HTTPException,Response,status
+from fastapi import FastAPI,HTTPException,Response,status,Request,Header 
 import uvicorn
 from pydantic import BaseModel, Field 
 from typing import Optional
@@ -193,3 +193,26 @@ async def login(auth: AuthSchema):
     except Exception as e:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail={"error": "Invalid login credentials"})
+
+@app.get('/public/info', status_code=status.HTTP_200_OK)
+async def public_info():
+
+     return {"message": "Welcome stranger! This info is public."}
+
+
+
+@app.get('/protected/profile')
+async def protected_profile(authorization: Optional[str] = Header(None)):
+    """Access protected user profile information."""
+
+    if not authorization or not authorization.startswith("Bearer ") or len(authorization.split(" ")) < 2:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail={"error": "Access token required"})
+
+    token = authorization.split(" ")[1]
+    if not token.strip():
+         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                             detail={"error": "Access token required"})
+
+    return {"message": "Access granted to unverified route", "token": token}
+
