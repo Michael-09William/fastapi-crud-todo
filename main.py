@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI,HTTPException,Response,status
 import uvicorn
 from pydantic import BaseModel, Field 
+from typing import Optional
 #import psycopg
 #from psycopg.rows import dict_row
 #from database import init_db
@@ -134,9 +135,61 @@ async def delete_tasks(id:int):
     status_code=status.HTTP_404_NOT_FOUND,
     detail={"error": "Task not found"},
 )
-         
-   
-    response = supabase.table("tasks").delete().eq("id", id).execute()
 
+    response = supabase.table("tasks").delete().eq("id", id).execute()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+class AuthSchema(BaseModel):
+    email: Optional[str] =None
+    password: Optional[str] =None
+
+@app.post('/auth/signup',status_code=status.HTTP_201_CREATED)
+
+async def signup(auth:AuthSchema):
+    """Sign up a new user using Supabase authentication."""
+
+    if not auth.email or not auth.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Email and password are required"})
+    try:
+        response = supabase.auth.sign_up({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        if not response.user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail={"error": "User registration failed"})
+
+        return response.user
+    except HTTPException:
+        raise 
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": str(e)})
+
+@app.post('/auth/login')
+async def login(auth: AuthSchema):
+    """Log in an existing user using Supabase authentication."""
+
+    if not auth.email or not auth.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"error": "Email and password are required"})
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": auth.email,
+            "password": auth.password
+        })
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "token_type": "bearer"
+        }
+    
+    except HTTPException:
+            raise 
+    except Exception as e:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail={"error": "Invalid login credentials"})
