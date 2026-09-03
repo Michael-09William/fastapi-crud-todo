@@ -17,3 +17,9 @@
 - **Caching Mechanism:** Saves downloaded HTML files to `cache/` directory. Reads directly from disk on subsequent runs (`CACHE HIT`), minimizing server strain.
 - **Error Handling:** Validates HTTP status code (`200 OK`) before attempting to process HTML content.
 - **Status Reporting:** Logs output status (`FETCH` or `CACHE HIT`) alongside the exact response size in bytes without dumping raw HTML into the console.
+
+### Stage 2: Discover Three Catalogue Pages
+- **Dynamic Crawling:** Discovers book pages by following pagination `next` buttons dynamically up to 3 catalogue pages max.
+- **URL Resolution:** Converts relative links (e.g., `../book-name/index.html`) to absolute URLs using standard URL tools (`urljoin`)[cite: 1].
+- **Politeness & Rate-Limiting:** Enforces a minimum delay of 500ms between real network requests[cite: 1].
+- **Deduplication:** Removes duplicate links to ensure exactly 60 unique book URLs[cite: 1].
