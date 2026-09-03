@@ -23,3 +23,8 @@
 - **URL Resolution:** Converts relative links (e.g., `../book-name/index.html`) to absolute URLs using standard URL tools (`urljoin`)[cite: 1].
 - **Politeness & Rate-Limiting:** Enforces a minimum delay of 500ms between real network requests[cite: 1].
 - **Deduplication:** Removes duplicate links to ensure exactly 60 unique book URLs[cite: 1].
+
+### Stage 3: Extract Raw Records
+- **Detail Extraction:** Visits all 60 individual book pages and extracts raw text fields (title, price_text, availability_text, rating_text, and description).
+- **Null Handling:** Stores `null` when a description is missing on the source page without fabricating text[cite: 1].
+- **Data Provenance:** Attaches `source_page` URL and UTC `fetched_at` timestamp to every extracted record for tracking[cite: 1].
