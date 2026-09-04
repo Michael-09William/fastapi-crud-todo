@@ -28,3 +28,44 @@
 - **Detail Extraction:** Visits all 60 individual book pages and extracts raw text fields (title, price_text, availability_text, rating_text, and description).
 - **Null Handling:** Stores `null` when a description is missing on the source page without fabricating text[cite: 1].
 - **Data Provenance:** Attaches `source_page` URL and UTC `fetched_at` timestamp to every extracted record for tracking[cite: 1].
+
+## Stage 4: Data Cleaning, Parsing & Type Conversion
+
+### Objective
+Process and clean the extracted raw web data into a fully typed, normalized, and structured schema ready for downstream storage and analysis.
+
+---
+
+### Implementation Details
+
+* **Numeric Extraction & Conversion**: Extracted float values for product prices and integer values for stock availability using regular expressions (`re`).
+* **Text Normalization**: Cleaned encoding anomalies (such as UTF-8/Latin-1 artifacts like `Â`) and trimmed whitespace from titles and descriptions.
+* **Rating Mapping**: Transformed string-based star ratings (`One`, `Two`, `Three`, `Four`, `Five`) into integer values ranging from `1` to `5`.
+* **Boolean Flagging**: Standardized `is_available` as a boolean flag based on in-stock unit count.
+* **Metadata Normalization**: Captured ISO 8601 UTC timestamps (`fetched_at`) and standard currency codes (`GBP`).
+
+---
+
+### Validation & Output
+
+The stage pipeline verifies the processed records through strict assertions:
+
+* Total valid records extracted: **60**
+* Price data type check: `float`
+* Rating bounds check: `1 <= rating <= 5`
+
+#### Sample Cleaned Record Schema
+
+```json
+{
+  "title": "A Light in the Attic",
+  "product_url": "[https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html](https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html)",
+  "price": 51.77,
+  "currency": "GBP",
+  "is_available": true,
+  "in_stock_count": 22,
+  "rating": 3,
+  "description": "It's hard to be a book lover...",
+  "source_page": "[https://books.toscrape.com/catalogue/page-1.html](https://books.toscrape.com/catalogue/page-1.html)",
+  "fetched_at": "2026-09-05T00:00:00+00:00"
+}
