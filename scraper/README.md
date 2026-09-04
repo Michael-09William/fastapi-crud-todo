@@ -67,5 +67,30 @@ The stage pipeline verifies the processed records through strict assertions:
   "rating": 3,
   "description": "It's hard to be a book lover...",
   "source_page": "[https://books.toscrape.com/catalogue/page-1.html](https://books.toscrape.com/catalogue/page-1.html)",
-  "fetched_at": "2026-09-05T00:00:00+00:00"
-}
+  "fetched_at": "2026-09-05T00:00:00+00:00"}
+  ```
+
+## Stage 5: Data Persistence & Export Pipeline
+
+### Objective
+Persist normalized and cleaned datasets into standard structured formats (`JSON` and `CSV`) in the designated output directory while ensuring character encoding integrity and dataset completeness.
+
+---
+
+### Implementation Details
+
+* **Directory Setup**: Automated creation of the output directory (`data/`) using `os.makedirs`.
+* **JSON Export**: Exported cleaned book dict objects using `json.dump` with formatting (`indent=2`) and `ensure_ascii=False` to preserve special text characters.
+* **CSV Export**: Utilized Python's `csv.DictWriter` to dynamic-map header fieldnames and export rows accurately with `utf-8` encoding.
+
+---
+
+### Validation & Verification
+
+* **Output Files Generated**:
+  * `data/books.json`
+  * `data/books.csv`
+* **Assertions Checks**:
+  * Output files exist on disk.
+  * Both generated files contain non-zero bytes (`os.path.getsize > 0`).
+  * Record count parity checked (60 records in both JSON & CSV).

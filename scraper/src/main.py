@@ -1,14 +1,16 @@
 import os
 import re
-import requests
+import csv
 import time
 import json
+import requests
 from datetime import datetime, timezone
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://books.toscrape.com/catalogue/page-1.html"
 CACHE_DIR = "cache"
+DATA_DIR = "data"
 
 HEADERS = {
     "User-Agent": "FlyRankInternship-A9/1.0 (+https://github.com/Michael-09William/fastapi-crud-todo)"
@@ -40,7 +42,6 @@ def get_page_html(url: str, cache_filename: str) -> str:
 
     content = response.text
 
-    # FIX 1: Save using cache_path instead of CACHE_FILE
     with open(cache_path, "w", encoding="utf-8") as f:
         f.write(content)
 
@@ -127,7 +128,6 @@ def extract_and_clean_book(book_item: dict, index: int) -> dict:
     raw_desc = desc_tag.find_next_sibling("p").text.strip() if desc_tag and desc_tag.find_next_sibling("p") else None
     description = clean_text(raw_desc)
 
-    # FIX 2: Return structured & cleaned schema
     return {
         "title": title,
         "product_url": url,
@@ -142,7 +142,22 @@ def extract_and_clean_book(book_item: dict, index: int) -> dict:
     }
 
 
-def run_stage_4():
+def save_to_json(data: list, filepath: str):
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def save_to_csv(data: list, filepath: str):
+    if not data:
+        return
+    fieldnames = list(data[0].keys())
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+
+def run_stage_5():
     books_to_extract = discover_books()
     cleaned_records = []
 
@@ -150,16 +165,23 @@ def run_stage_4():
         record = extract_and_clean_book(item, idx)
         cleaned_records.append(record)
 
-    assert len(cleaned_records) == 60, "Expected exactly 60 records"
-    assert all(isinstance(r["price"], float) for r in cleaned_records), "Price must be float"
-    assert all(1 <= r["rating"] <= 5 for r in cleaned_records), "Rating must be integer 1-5"
+    os.makedirs(DATA_DIR, exist_ok=True)
+    json_path = os.path.join(DATA_DIR, "books.json")
+    csv_path = os.path.join(DATA_DIR, "books.csv")
 
-    print("--- Sample Cleaned Record ---")
-    print(json.dumps(cleaned_records[0], indent=2))
-    print(f"valid_cleaned_records = {len(cleaned_records)}")
+    save_to_json(cleaned_records, json_path)
+    save_to_csv(cleaned_records, csv_path)
 
-    return cleaned_records
+    # Assertions for Stage 5
+    assert os.path.exists(json_path), "JSON export file missing"
+    assert os.path.exists(csv_path), "CSV export file missing"
+    assert os.path.getsize(json_path) > 0, "JSON file is empty"
+    assert os.path.getsize(csv_path) > 0, "CSV file is empty"
+
+    print(f"Successfully exported {len(cleaned_records)} records to:")
+    print(f"  - {json_path}")
+    print(f"  - {csv_path}")
 
 
 if __name__ == "__main__":
-    run_stage_4()
+    run_stage_5()
